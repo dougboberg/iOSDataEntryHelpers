@@ -453,7 +453,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		case .MultiArray:
 			if let splitText = self.primaryfield.text?.split(separator: Character(multiArrayDisplaySeparator)) {
 				var selected:[String] = []
-				for pos in 0...splitText.count {
+				for pos in 0...(splitText.count - 1) {
 					selected.append(String(splitText[pos]).trimmingCharacters(in: .whitespacesAndNewlines))
 				}
 				self.multiArrayValue = selected
