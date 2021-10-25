@@ -15,6 +15,8 @@ import UIKit
 public enum DataEntryPickerType:Int {
 	case HumanHeightIN
 	case HumanHeightCM
+	case HumanWeightLB
+	case HumanWeightKG
 	case PastDate
 	case FutureDate
 	case AnyDate
@@ -40,6 +42,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 	// resulting user-picked values
 	public var heightValue:Int! = 0
+	public var weightValue:Int! = 0
 	public var dateValue:Date?
 	public var multiArrayValue:[String]?
 
@@ -148,7 +151,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 
 		// Vertical layout - these don't change so set them here
-		var viewsDictionary = ["_primaryfield": _primaryfield, "_primarylabel": _primarylabel, "self": self]
+		var viewsDictionary:[String:Any] = ["_primaryfield": _primaryfield!, "_primarylabel": _primarylabel!, "self": self]
 		self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[_primaryfield]|", metrics: nil, views: viewsDictionary))
 		self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[_primarylabel]|", metrics: nil, views: viewsDictionary))
 		if _button != nil {
@@ -201,7 +204,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 
 				// Vertical layout - these don't change so set them once
-				let viewsDictionary = ["_secondaryfield": _secondaryfield, "_secondarylabel": _secondarylabel, "self": self]
+				let viewsDictionary:[String:Any] = ["_secondaryfield": _secondaryfield!, "_secondarylabel": _secondarylabel!, "self": self]
 				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[_secondaryfield]|", metrics: nil, views: viewsDictionary))
 				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[_secondarylabel]|", metrics: nil, views: viewsDictionary))
 			}
@@ -212,10 +215,10 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 			// Horizontal layout
 			if _button != nil {
-				let viewsDictionary = ["_primaryfield": _primaryfield, "_primarylabel": _primarylabel, "_secondaryfield": _secondaryfield, "_secondarylabel": _secondarylabel, "_button": _button, "self": self]
+				let viewsDictionary:[String:Any] = ["_primaryfield": _primaryfield!, "_primarylabel": _primarylabel!, "_secondaryfield": _secondaryfield!, "_secondarylabel": _secondarylabel!, "_button": _button!, "self": self]
 				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_primarylabel(==24)]-[_secondaryfield(==_primaryfield)]-2-[_secondarylabel(==24)]-2-[_button(==24)]|", metrics: nil, views: viewsDictionary))
 			} else {
-				let viewsDictionary = ["_primaryfield": _primaryfield, "_primarylabel": _primarylabel, "_secondaryfield": _secondaryfield, "_secondarylabel": _secondarylabel, "self": self]
+				let viewsDictionary:[String:Any] = ["_primaryfield": _primaryfield!, "_primarylabel": _primarylabel!, "_secondaryfield": _secondaryfield!, "_secondarylabel": _secondarylabel!, "self": self]
 				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_primarylabel(==24)]-[_secondaryfield(==_primaryfield)]-2-[_secondarylabel(==24)]|", metrics: nil, views: viewsDictionary))
 			}
 			break
@@ -227,10 +230,40 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 			// Horizontal layout
 			if _button != nil {
-				let viewsDictionary = ["_primaryfield": _primaryfield, "_primarylabel": _primarylabel, "_button": _button, "self": self]
+				let viewsDictionary:[String:Any] = ["_primaryfield": _primaryfield!, "_primarylabel": _primarylabel!, "_button": _button!, "self": self]
 				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_primarylabel(==_primaryfield)]-2-[_button(==24)]|", metrics: nil, views: viewsDictionary))
 			} else {
-				let viewsDictionary = ["_primaryfield": _primaryfield, "_primarylabel": _primarylabel, "self": self]
+				let viewsDictionary:[String:Any] = ["_primaryfield": _primaryfield!, "_primarylabel": _primarylabel!, "self": self]
+				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_primarylabel(==_primaryfield)]|", metrics: nil, views: viewsDictionary))
+			}
+			break
+
+		case .HumanWeightLB:
+
+			// layout for POUNDS type
+			self.primarylabel.text = NSLocalizedString("lb", comment:"abbreviation for pound weight")
+
+			// Horizontal layout
+			if _button != nil {
+				let viewsDictionary:[String:Any] = ["_primaryfield": _primaryfield!, "_primarylabel": _primarylabel!, "_button": _button!, "self": self]
+				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_primarylabel(==_primaryfield)]-2-[_button(==24)]|", metrics: nil, views: viewsDictionary))
+			} else {
+				let viewsDictionary:[String:Any] = ["_primaryfield": _primaryfield!, "_primarylabel": _primarylabel!, "self": self]
+				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_primarylabel(==_primaryfield)]|", metrics: nil, views: viewsDictionary))
+			}
+			break
+
+		case .HumanWeightKG:
+
+			// layout for KILOGRAM type
+			self.primarylabel.text = NSLocalizedString("kg", comment:"abbreviation for kilogram weight")
+
+			// Horizontal layout
+			if _button != nil {
+				let viewsDictionary:[String:Any] = ["_primaryfield": _primaryfield!, "_primarylabel": _primarylabel!, "_button": _button!, "self": self]
+				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_primarylabel(==_primaryfield)]-2-[_button(==24)]|", metrics: nil, views: viewsDictionary))
+			} else {
+				let viewsDictionary:[String:Any] = ["_primaryfield": _primaryfield!, "_primarylabel": _primarylabel!, "self": self]
 				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_primarylabel(==_primaryfield)]|", metrics: nil, views: viewsDictionary))
 			}
 			break
@@ -241,10 +274,10 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 			// Horizontal layout
 			if _button != nil {
-				let viewsDictionary = ["_primaryfield": _primaryfield, "_button": _button, "self": self]
+				let viewsDictionary:[String:Any] = ["_primaryfield": _primaryfield!, "_button": _button!, "self": self]
 				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_button(==24)]|", metrics: nil, views: viewsDictionary))
 			} else {
-				let viewsDictionary = ["_primaryfield": _primaryfield, "self": self]
+				let viewsDictionary:[String:Any] = ["_primaryfield": _primaryfield!, "self": self]
 				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]|", metrics: nil, views: viewsDictionary))
 			}
 			break
@@ -257,10 +290,10 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 			// Horizontal layout
 			if _button != nil {
-				let viewsDictionary = ["_primaryfield": _primaryfield, "_button": _button, "self": self]
+				let viewsDictionary:[String:Any] = ["_primaryfield": _primaryfield!, "_button": _button!, "self": self]
 				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_button(==24)]|", metrics: nil, views: viewsDictionary))
 			} else {
-				let viewsDictionary = ["_primaryfield": _primaryfield, "self": self]
+				let viewsDictionary:[String:Any] = ["_primaryfield": _primaryfield!, "self": self]
 				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]|", metrics: nil, views: viewsDictionary))
 			}
 			break
@@ -310,6 +343,14 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		case .HumanHeightCM:
 			if self.heightValue > 0 {
 				self.primaryfield.text = String(format:"%d", self.heightValue)
+			} else {
+				self.primaryfield.text = ""
+			}
+			break
+
+		case .HumanWeightLB, .HumanWeightKG:
+			if self.weightValue > 0 {
+				self.primaryfield.text = String(format:"%d", self.weightValue)
 			} else {
 				self.primaryfield.text = ""
 			}
@@ -379,6 +420,8 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			} else if self.dataPickerType == .HumanHeightCM  {
 				self.heightValue = Int(self.primaryfield.text ?? "0") ?? 0
 
+			} else if self.dataPickerType == .HumanWeightLB ||  self.dataPickerType == .HumanWeightKG  {
+				self.weightValue = Int(self.primaryfield.text ?? "0") ?? 0
 			}
 
 			self.nextInputField?.becomeFirstResponder()
@@ -401,6 +444,10 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 		case .HumanHeightCM:
 			self.heightValue = Int(self.primaryfield.text ?? "0") ?? 0
+			break
+
+		case .HumanWeightLB, .HumanWeightKG:
+			self.weightValue = Int(self.primaryfield.text ?? "0") ?? 0
 			break
 
 		case .MultiArray:
@@ -441,7 +488,11 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		var picker:UIPickerView!
 		var datepicker:UIDatePicker!
 
-		if self.dataPickerType == .HumanHeightIN || self.dataPickerType == .HumanHeightCM || self.dataPickerType == .MultiArray  {
+		if self.dataPickerType == .HumanHeightIN
+				|| self.dataPickerType == .HumanHeightCM
+				|| self.dataPickerType == .HumanWeightLB
+				|| self.dataPickerType == .HumanWeightKG
+				|| self.dataPickerType == .MultiArray  {
 			picker = UIPickerView()
 			picker.dataSource = self
 			picker.delegate = self
@@ -504,6 +555,10 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 					picker.selectRow(1, inComponent: 0, animated: true)
 					picker.selectRow(60, inComponent: 1, animated: true)
 				}
+				break
+
+			case .HumanWeightLB, .HumanWeightKG:
+				picker.selectRow(self.weightValue, inComponent: 0, animated: true)
 				break
 
 			case .PastDate:
@@ -582,6 +637,10 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 				.HumanHeightCM:
 			return 2
 
+		case .HumanWeightLB,
+				.HumanWeightKG:
+			return 1
+
 		case .MultiArray:
 			if let columns:[[String]] = self.multiArrayColumns {
 				return columns.count
@@ -603,6 +662,9 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		case .HumanHeightCM:
 			return (component == 0) ? 3 : 100	//0-2 m, 0-99 cm
 
+		case .HumanWeightLB,
+				.HumanWeightKG:
+			return 500
 
 		case .MultiArray:
 			if let columns:[[String]] = self.multiArrayColumns {
@@ -626,6 +688,11 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		case .HumanHeightCM:
 			return (component == 0) ? String(format:"%d", row) : String(format:"%d cm", row)
 
+		case .HumanWeightLB:
+			return String(format:"%d lb", row)
+
+		case .HumanWeightKG:
+			return String(format:"%d kg", row)
 
 		case .MultiArray:
 			if let columns:[[String]] = self.multiArrayColumns {
@@ -657,6 +724,11 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			let m:Int = pickerView.selectedRow(inComponent: 0)
 			let cm:Int = pickerView.selectedRow(inComponent: 1)
 			heightValue = Int(((m * 100) + cm))
+			break
+
+		case .HumanWeightLB,
+				.HumanWeightKG:
+			weightValue = pickerView.selectedRow(inComponent: 0)
 			break
 
 		case .MultiArray:
@@ -728,11 +800,16 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		switch (self.dataPickerType) {
 		case .HumanHeightIN:
 			// valid if greater than 10 inches
-			return (self.heightValue ?? 0  > 10)
+			return (self.heightValue > 10)
 
 		case .HumanHeightCM:
 			// valid if greater than 10 cm
-			return (self.heightValue ?? 0  > 10)
+			return (self.heightValue > 10)
+
+		case .HumanWeightLB,
+				.HumanWeightKG:
+			// valid if not 0
+			return (self.weightValue != 0)
 
 		case .PastDate:
 			// valid if date is less than now (in the past)
@@ -759,9 +836,6 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		case .MultiArray:
 			return (self.multiArrayValue != nil)
 		}
-
-		// if there is no requirement for a specific data above, then gigo freeform I guess you're good.
-		return true
 	}
 
 	func clearData() {
