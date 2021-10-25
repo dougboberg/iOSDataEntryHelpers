@@ -453,8 +453,10 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		case .MultiArray:
 			if let splitText = self.primaryfield.text?.split(separator: Character(multiArrayDisplaySeparator)) {
 				var selected:[String] = []
-				for pos in 0...(splitText.count - 1) {
-					selected.append(String(splitText[pos]).trimmingCharacters(in: .whitespacesAndNewlines))
+				if splitText.count > 0 {
+					for pos in 0...(splitText.count - 1) {
+						selected.append(String(splitText[pos]).trimmingCharacters(in: .whitespacesAndNewlines))
+					}
 				}
 				self.multiArrayValue = selected
 			}
@@ -587,28 +589,22 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 			case .MultiArray:
 				if let multi:[String] = self.multiArrayValue, let columns:[[String]] = self.multiArrayColumns {
+					if multi.count != columns.count {
+						self.multiArrayValue = self.makeMultiValueDefault()
+					}
+
 					for col in 0...(columns.count - 1) {
 						let rows:[String] = columns[col]
 						for row in 0...(rows.count - 1) {
 							if col < multi.count && multi[col] == rows[row] {
 								picker.selectRow(row, inComponent: col, animated: true)
+								break
 							}
 						}
 					}
 
 				} else {
-					var firstOfEach:[String] = []
-					if let columns:[[String]] = self.multiArrayColumns {
-						for col in 0...(columns.count - 1) {
-							let rows:[String] = columns[col]
-							if rows.count > 0 {
-								firstOfEach.append(rows[0])
-							} else {
-								firstOfEach.append("")
-							}
-						}
-					}
-					self.multiArrayValue = firstOfEach
+					self.multiArrayValue = self.makeMultiValueDefault()
 				}
 				break
 			}
@@ -742,6 +738,11 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 				}
 			}
 			if var multi:[String] = self.multiArrayValue {
+				if component > multi.count {
+					for pos in 0...component {
+						multi.append("")
+					}
+				}
 				multi[component] = selected
 				self.multiArrayValue = multi
 			}
@@ -852,5 +853,20 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		self.secondaryfield?.layer.borderWidth = 0.0
 
 		self.updateConstraints()
+	}
+
+	func makeMultiValueDefault() -> [String] {
+		var firstOfEach:[String] = []
+		if let columns:[[String]] = self.multiArrayColumns {
+			for col in 0...(columns.count - 1) {
+				let rows:[String] = columns[col]
+				if rows.count > 0 {
+					firstOfEach.append(rows[0])
+				} else {
+					firstOfEach.append("")
+				}
+			}
+		}
+		return firstOfEach
 	}
 }
