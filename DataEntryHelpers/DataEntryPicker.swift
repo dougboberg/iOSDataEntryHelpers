@@ -13,12 +13,12 @@ import UIKit
 
 
 public enum DataEntryPickerType:Int {
-	case HumanHeightFT
+	case HumanHeightIN
 	case HumanHeightCM
 	case PastDate
 	case FutureDate
 	case AnyDate
-	case Generic
+	case MultiArray
 }
 
 public protocol DataEntryPickerDelegate : NSObject {
@@ -42,24 +42,30 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		self.delegate = delegate
 	}
 
+	// behavior and delegates
 	public var delegate:DataEntryPickerDelegate?
-	public var dataPickerType:DataEntryPickerType = .Generic
+	public var dataPickerType:DataEntryPickerType = .MultiArray
+	public var showKeyaboard:Bool = false
 	public var nextInputField:UIResponder?
 	public var inputAssistantViewController:UIViewController?
 
+	// component column setup for Generic type (dates are automatic, height is hardcoded)
+	public var multiArrayColumns:[[String]]! = []
+
+	// resulting user-picked values
 	public var heightValue:Int! = 0
 	public var dateValue:Date! = Date()
-	public var genericValues:[String]! = []
-	public var genericDefaultValue:String! = ""
-	public var genericValue:String! = ""
+	public var multiArrayValue:[String]! = []
 
+	// design
 	public var labelTextColor:UIColor! = UIColor.black
+	public var buttonIcon:UIImage?
 	public var buttonTextColor:UIColor! = UIColor.black
 	public var buttonBackgroundColor:UIColor! = UIColor.systemGray2
 	public var buttonShadowColor:UIColor! = UIColor.systemGray4
 	public var invalidDataIndicatorColor:UIColor! = UIColor.red
+	let multiArrayDisplaySeparator = "•"
 
-	var usePlaceHolderForHeight:Bool = false
 
 	private var _primaryfield:UITextField!
 	var primaryfield:UITextField! {
@@ -72,19 +78,18 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		get { return _primarylabel }
 		set { _primarylabel = newValue }
 	}
-	private var _secondaryfield:UITextField!
-	var secondaryfield:UITextField! {
+	private var _secondaryfield:UITextField?
+	var secondaryfield:UITextField? {
 		get { return _secondaryfield }
 		set { _secondaryfield = newValue }
 	}
-	private var _secondarylabel:UILabel!
-	var secondarylabel:UILabel! {
+	private var _secondarylabel:UILabel?
+	var secondarylabel:UILabel? {
 		get { return _secondarylabel }
 		set { _secondarylabel = newValue }
 	}
-	var datefield:UITextField!
-	private var _button:UIButton!
-	var button:UIButton! {
+	private var _button:UIButton?
+	var button:UIButton? {
 		get { return _button }
 		set { _button = newValue }
 	}
@@ -126,19 +131,23 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		self.primarylabel.translatesAutoresizingMaskIntoConstraints = false
 		self.addSubview(self.primarylabel)
 
-		self.button = UIButton()
-		self.button.addTarget(self, action: #selector(showPicker), for: .touchUpInside)
-		self.button.titleLabel?.textAlignment = .center
-		self.button.titleLabel?.adjustsFontSizeToFitWidth = true
-		self.button.titleLabel?.minimumScaleFactor = 0.25
-		self.button.setImage(UIImage(systemName: "search"), for: .normal)
-		self.button.layer.cornerRadius = 4
-		self.button.layer.masksToBounds = false
-		self.button.layer.shadowOffset = CGSize(width:0.0,height:2.0)
-		self.button.layer.shadowOpacity = 1
-		self.button.layer.shadowRadius = 0
-		self.button.translatesAutoresizingMaskIntoConstraints = false
-		self.addSubview(self.button)
+		if let icon = self.buttonIcon {
+			self.button = UIButton()
+			if let button = self.button {
+				button.addTarget(self, action: #selector(showPicker), for: .touchUpInside)
+				button.titleLabel?.textAlignment = .center
+				button.titleLabel?.adjustsFontSizeToFitWidth = true
+				button.titleLabel?.minimumScaleFactor = 0.25
+				button.setImage(icon, for: .normal)
+				button.layer.cornerRadius = 4
+				button.layer.masksToBounds = false
+				button.layer.shadowOffset = CGSize(width:0.0,height:2.0)
+				button.layer.shadowOpacity = 1
+				button.layer.shadowRadius = 0
+				button.translatesAutoresizingMaskIntoConstraints = false
+				self.addSubview(button)
+			}
+		}
 
 		// Look at this little magical fucker.
 		// give the template the pieces you want (month, day, year, hour, minute http://www.unicode.org/reports/tr35/tr35-31/tr35-dates.html#Date_Format_Patterns )
@@ -153,35 +162,22 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 
 		// Vertical layout - these don't change so set them here
-		// FIXME: autolayout
-		let viewsDictionary = ["_primaryfield": _primaryfield, "_primarylabel": _primarylabel, "_button": _button, "self": self]
+		var viewsDictionary = ["_primaryfield": _primaryfield, "_primarylabel": _primarylabel, "self": self]
 		self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[_primaryfield]|", metrics: nil, views: viewsDictionary))
 		self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[_primarylabel]|", metrics: nil, views: viewsDictionary))
-		self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[_button]|", metrics: nil, views: viewsDictionary))
-
-
-		//		let views:NSDictionary! = NSDictionaryOfVariableBindings(_primaryfield, _primarylabel, _button, self)
-		//		self.addConstraints(NSLayoutConstraint.constraintsWithVisualFormat("V:|[_primaryfield]|",
-		//																	 options:0,
-		//																	 metrics:nil,
-		//																		views:views))
-		//		self.addConstraints(NSLayoutConstraint.constraintsWithVisualFormat("V:|[_primarylabel]|",
-		//																	 options:0,
-		//																	 metrics:nil,
-		//																		views:views))
-		//		self.addConstraints(NSLayoutConstraint.constraintsWithVisualFormat("V:|[_button]|",
-		//																	 options:0,
-		//																	 metrics:nil,
-		//																		views:views))
+		if _button != nil {
+			viewsDictionary["_button"] = _button
+			self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[_button]|", metrics: nil, views: viewsDictionary))
+		}
 
 
 		//debug
-//		self.backgroundColor = UIColor.purple.withAlphaComponent(0.3)
-//		self.primaryfield.backgroundColor = UIColor.green.withAlphaComponent(0.3)
-//		self.primarylabel.backgroundColor = UIColor.yellow.withAlphaComponent(0.5)
-//		self.secondaryfield.backgroundColor = UIColor.blue.withAlphaComponent(0.3)
-//		self.secondarylabel.backgroundColor = UIColor.orange.withAlphaComponent(0.5)
-//		self.button.backgroundColor = UIColor.red.withAlphaComponent(0.1)
+		//		self.backgroundColor = UIColor.purple.withAlphaComponent(0.3)
+		//		self.primaryfield.backgroundColor = UIColor.green.withAlphaComponent(0.3)
+		//		self.primarylabel.backgroundColor = UIColor.yellow.withAlphaComponent(0.5)
+		//		self.secondaryfield.backgroundColor = UIColor.blue.withAlphaComponent(0.3)
+		//		self.secondarylabel.backgroundColor = UIColor.orange.withAlphaComponent(0.5)
+		//		self.button.backgroundColor = UIColor.red.withAlphaComponent(0.1)
 	}
 
 
@@ -192,71 +188,50 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		super.updateConstraints()
 
 		switch (self.dataPickerType) {
-		case .HumanHeightFT:
+		case .HumanHeightIN:
 
 			// setup if needed
 			if nil == self.secondaryfield {
 
 				self.secondaryfield = UITextField()
-				self.secondaryfield.delegate = self
-				self.secondaryfield.borderStyle = .roundedRect
-				self.secondaryfield.returnKeyType = .next
-				self.secondaryfield.keyboardType = .numbersAndPunctuation
-				self.secondaryfield.autocorrectionType = .no
-				self.secondaryfield.translatesAutoresizingMaskIntoConstraints = false
-				self.secondaryfield.backgroundColor = self.primaryfield.backgroundColor
-				self.secondaryfield.tintColor = self.primaryfield.tintColor
+				if let field = self.secondaryfield {
+					field.delegate = self
+					field.borderStyle = .roundedRect
+					field.returnKeyType = .next
+					field.keyboardType = .numbersAndPunctuation
+					field.autocorrectionType = .no
+					field.translatesAutoresizingMaskIntoConstraints = false
+					field.backgroundColor = self.primaryfield.backgroundColor
+					field.tintColor = self.primaryfield.tintColor
 
-				self.addSubview(self.secondaryfield)
+					self.addSubview(field)
+				}
 
 				self.secondarylabel = UILabel()
-				self.secondarylabel.translatesAutoresizingMaskIntoConstraints = false
-				self.addSubview(self.secondarylabel)
+				if let label = self.secondarylabel {
+					label.translatesAutoresizingMaskIntoConstraints = false
+					self.addSubview(label)
+				}
 
 
 				// Vertical layout - these don't change so set them once
 				let viewsDictionary = ["_secondaryfield": _secondaryfield, "_secondarylabel": _secondarylabel, "self": self]
 				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[_secondaryfield]|", metrics: nil, views: viewsDictionary))
 				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "V:|[_secondarylabel]|", metrics: nil, views: viewsDictionary))
-
-				// FIXME: autolayout
-				//					let views:NSDictionary! = NSDictionaryOfVariableBindings(_secondaryfield, _secondarylabel, self)
-				//					self.addConstraints(NSLayoutConstraint.constraintsWithVisualFormat("V:|[_secondaryfield]|",
-				//																				 options:0,
-				//																				 metrics:nil,
-				//																					views:views))
-				//					self.addConstraints(NSLayoutConstraint.constraintsWithVisualFormat("V:|[_secondarylabel]|",
-				//																				 options:0,
-				//																				 metrics:nil,
-				//																					views:views))
 			}
 
-			if  self.usePlaceHolderForHeight  {
-				self.primarylabel.text = ""
-				self.secondarylabel.text = ""
-				self.primarylabel.isHidden = true
-				self.secondarylabel.isHidden = true
-
-				self.primaryfield.placeholder = NSLocalizedString("ft", comment:"abbreviation for feet in U.S. customary measuring system")
-				self.secondaryfield.placeholder = NSLocalizedString("in", comment:"abbreviation for inches in U.S. customary measuring system")
-			} else {
-				// layout for FEET type
-				self.primarylabel.text = NSLocalizedString("ft", comment:"abbreviation for feet in U.S. customary measuring system")
-				self.secondarylabel.text = NSLocalizedString("in", comment:"abbreviation for inches in U.S. customary measuring system")
-			}
-
+			// layout for FEET type
+			self.primarylabel.text = NSLocalizedString("ft", comment:"abbreviation for feet in U.S. customary measuring system")
+			self.secondarylabel?.text = NSLocalizedString("in", comment:"abbreviation for inches in U.S. customary measuring system")
 
 			// Horizontal layout
-			let viewsDictionary = ["_primaryfield": _primaryfield, "_primarylabel": _primarylabel, "_secondaryfield": _secondaryfield, "_secondarylabel": _secondarylabel, "_button": _button, "self": self]
-			self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_primarylabel(==24)]-[_secondaryfield(==_primaryfield)]-2-[_secondarylabel(==24)]-2-[_button(==24)]|", metrics: nil, views: viewsDictionary))
-			// FIXME: autolayout
-			//						  let views:NSDictionary! = NSDictionaryOfVariableBindings(_primaryfield, _primarylabel, _secondaryfield, _secondarylabel, _button, self)
-			//
-			//						  self.addConstraints(NSLayoutConstraint.constraintsWithVisualFormat("H:|[_primaryfield]-2-[_primarylabel(==24)]-[_secondaryfield(==_primaryfield)]-2-[_secondarylabel(==24)]-2-[_button(==24)]|",
-			//																											options:0,
-			//																											metrics:nil,
-			//																											  views:views))
-
+			if _button != nil {
+				let viewsDictionary = ["_primaryfield": _primaryfield, "_primarylabel": _primarylabel, "_secondaryfield": _secondaryfield, "_secondarylabel": _secondarylabel, "_button": _button, "self": self]
+				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_primarylabel(==24)]-[_secondaryfield(==_primaryfield)]-2-[_secondarylabel(==24)]-2-[_button(==24)]|", metrics: nil, views: viewsDictionary))
+			} else {
+				let viewsDictionary = ["_primaryfield": _primaryfield, "_primarylabel": _primarylabel, "_secondaryfield": _secondaryfield, "_secondarylabel": _secondarylabel, "self": self]
+				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_primarylabel(==24)]-[_secondaryfield(==_primaryfield)]-2-[_secondarylabel(==24)]|", metrics: nil, views: viewsDictionary))
+			}
 			break
 
 		case .HumanHeightCM:
@@ -265,32 +240,27 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			self.primarylabel.text = NSLocalizedString("cm", comment:"abbreviation for centimeters")
 
 			// Horizontal layout
-			let viewsDictionary = ["_primaryfield": _primaryfield, "_primarylabel": _primarylabel, "_button": _button, "self": self]
-			self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_primarylabel(==_primaryfield)]-2-[_button(==24)]|", metrics: nil, views: viewsDictionary))
-			// FIXME: autolayout
-			//				let views:NSDictionary! = NSDictionaryOfVariableBindings(_primaryfield, _primarylabel, _button, self)
-			//
-			//				self.addConstraints(NSLayoutConstraint.constraintsWithVisualFormat("H:|[_primaryfield]-2-[_primarylabel(==_primaryfield)]-2-[_button(==24)]|",
-			//																			 options:0,
-			//																			 metrics:nil,
-			//																				views:views))
-
+			if _button != nil {
+				let viewsDictionary = ["_primaryfield": _primaryfield, "_primarylabel": _primarylabel, "_button": _button, "self": self]
+				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_primarylabel(==_primaryfield)]-2-[_button(==24)]|", metrics: nil, views: viewsDictionary))
+			} else {
+				let viewsDictionary = ["_primaryfield": _primaryfield, "_primarylabel": _primarylabel, "self": self]
+				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_primarylabel(==_primaryfield)]|", metrics: nil, views: viewsDictionary))
+			}
 			break
 
-		case .Generic:
+		case .MultiArray:
 
 			self.primarylabel.text = ""
 
 			// Horizontal layout
-			let viewsDictionary = ["_primaryfield": _primaryfield, "_button": _button, "self": self]
-			self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_button(==24)]|", metrics: nil, views: viewsDictionary))
-			// FIXME: autolayout
-			//					 let views:NSDictionary! = NSDictionaryOfVariableBindings(_primaryfield, _button, self)
-			//					 self.addConstraints(NSLayoutConstraint.constraintsWithVisualFormat("H:|[_primaryfield]-2-[_button(==24)]|",
-			//																									  options:0,
-			//																									  metrics:nil,
-			//																										 views:views))
-
+			if _button != nil {
+				let viewsDictionary = ["_primaryfield": _primaryfield, "_button": _button, "self": self]
+				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_button(==24)]|", metrics: nil, views: viewsDictionary))
+			} else {
+				let viewsDictionary = ["_primaryfield": _primaryfield, "self": self]
+				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]|", metrics: nil, views: viewsDictionary))
+			}
 			break
 
 		default:
@@ -300,27 +270,28 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			self.primarylabel.removeFromSuperview()
 
 			// Horizontal layout
-			let viewsDictionary = ["_primaryfield": _primaryfield, "_button": _button, "self": self]
-			self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_button(==24)]|", metrics: nil, views: viewsDictionary))
-			// FIXME: autolayout
-			//				let views:NSDictionary! = NSDictionaryOfVariableBindings(_primaryfield, _button, self)
-			//
-			//				self.addConstraints(NSLayoutConstraint.constraintsWithVisualFormat("H:|[_primaryfield]-2-[_button(==24)]|",
-			//																			 options:0,
-			//																			 metrics:nil,
-			//																				views:views))
-
+			if _button != nil {
+				let viewsDictionary = ["_primaryfield": _primaryfield, "_button": _button, "self": self]
+				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]-2-[_button(==24)]|", metrics: nil, views: viewsDictionary))
+			} else {
+				let viewsDictionary = ["_primaryfield": _primaryfield, "self": self]
+				self.addConstraints(NSLayoutConstraint.constraints(withVisualFormat: "H:|[_primaryfield]|", metrics: nil, views: viewsDictionary))
+			}
 			break
 		}
 
-		self.button.setTitleColor(self.buttonTextColor, for:.normal)
-		self.button.backgroundColor = self.buttonBackgroundColor
-		self.button.layer.shadowColor = self.buttonShadowColor.cgColor
+		if let button = self.button {
+			button.setTitleColor(self.buttonTextColor, for:.normal)
+			button.backgroundColor = self.buttonBackgroundColor
+			button.layer.shadowColor = self.buttonShadowColor.cgColor
+		}
 
 		self.primarylabel.textColor = self.labelTextColor
 		self.primaryfield.keyboardAppearance = self.keyboardAppearance
 
-		self.secondarylabel.textColor = self.labelTextColor
+		if secondarylabel != nil {
+			self.secondarylabel?.textColor = self.labelTextColor
+		}
 
 
 	}
@@ -332,7 +303,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 	func updateFieldDisplay() {
 		switch (self.dataPickerType) {
-		case .HumanHeightFT:
+		case .HumanHeightIN:
 
 			let feet:Int = self.heightValue ?? 0 / 12
 			if feet > 0 {
@@ -343,9 +314,9 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 			let inches:Int = self.heightValue ?? 0 % 12
 			if inches > 0 {
-				self.secondaryfield.text = String(format:"%d", inches)
+				self.secondaryfield?.text = String(format:"%d", inches)
 			} else {
-				self.secondaryfield.text = ""
+				self.secondaryfield?.text = ""
 			}
 
 			break
@@ -358,12 +329,8 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			}
 			break
 
-		case .Generic:
-			if let generic:String = self.genericValue {
-				self.primaryfield.text = generic
-			} else {
-				self.primaryfield.text = ""
-			}
+		case .MultiArray:
+			self.primaryfield.text = self.multiArrayValue.joined(separator: " \(multiArrayDisplaySeparator) ")
 			break
 
 		default:
@@ -382,7 +349,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 	open override func resignFirstResponder() -> Bool {
 		self.primaryfield.resignFirstResponder()
-		self.secondaryfield.resignFirstResponder()
+		self.secondaryfield?.resignFirstResponder()
 		self.pickerController.dismiss(animated: false, completion:nil)
 		return super.resignFirstResponder()
 	}
@@ -396,39 +363,33 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 	public func textFieldShouldBeginEditing(_ textField:UITextField) -> Bool {
 		self.delegate?.beganTextInput()
 
-		//		  // if the button is hidden, we only allow picker input (no keyboard)
-		//		  if self.button.hidden {
-		//
-		//				// hide the keyboard on the parent view controller, then show the picker
-		//				if self.inputAssistantViewController != nil  {
-		//					 self.inputAssistantViewController.view.endEditing(true)
-		//				}
-		//
-		//				self.showPicker()
-		//
-		//				// return false to prevent default keyboard from showing
-		//				return false
-		//		  }
+		// only allow picker input (no keyboard)
+		if showKeyaboard {
+			// show the picker and return true to get they default keyboard
+			self.showPicker()
+			return true
+		}
+
+		// else hide the keyboard on the parent view controller, then show the picker
+		self.inputAssistantViewController?.view.endEditing(true)
 		self.showPicker()
-		// if we have the button, we return true to allow Keyboard entry. Picker input is done with the button (elsewhere in this code)
-		return true
+		// return false to prevent default keyboard from showing
+		return false
 	}
 
 	public func textFieldShouldReturn(_ textField:UITextField) -> Bool {
 		if textField == self.primaryfield && nil != self.secondaryfield {
-			self.secondaryfield.becomeFirstResponder()
+			self.secondaryfield?.becomeFirstResponder()
 		} else {
-			if self.dataPickerType == .HumanHeightFT  {
+			if self.dataPickerType == .HumanHeightIN  {
 				let feet:Int = Int(self.primaryfield.text ?? "0") ?? 0
-				let inches:Int = Int(self.secondaryfield.text ?? "0") ?? 0
+				let inches:Int = Int(self.secondaryfield?.text ?? "0") ?? 0
 				self.heightValue = Int(((feet * 12) + inches))
 
 			} else if self.dataPickerType == .HumanHeightCM  {
 				self.heightValue = Int(self.primaryfield.text ?? "0") ?? 0
 
 			}
-
-			// FIXME: NSNotificationCenter.defaultCenter().postNotificationName(kDataEntryPickerReturnNotification, object: self)
 
 			self.nextInputField?.becomeFirstResponder()
 		}
@@ -440,10 +401,10 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 	public func textFieldDidEndEditing(_ textField:UITextField) {
 		switch (self.dataPickerType) {
-		case .HumanHeightFT:
+		case .HumanHeightIN:
 
 			let feet:Int = Int(self.primaryfield.text ?? "0") ?? 0
-			let inches:Int = Int(self.secondaryfield.text ?? "0") ?? 0
+			let inches:Int = Int(self.secondaryfield?.text ?? "0") ?? 0
 			self.heightValue = Int(((feet * 12) + inches))
 
 			break
@@ -452,8 +413,13 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			self.heightValue = Int(self.primaryfield.text ?? "0") ?? 0
 			break
 
-		case .Generic:
-			self.genericValue = self.primaryfield.text
+		case .MultiArray:
+			self.multiArrayValue = []
+			if let values = self.primaryfield.text?.split(separator: Character(multiArrayDisplaySeparator)) {
+				for pos in 0...values.count {
+					self.multiArrayValue[pos] = String(values[pos])
+				}
+			}
 			break
 
 		default:
@@ -461,7 +427,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			break
 		}
 
-		// data has changed:  alert & update display
+		// Text Field did End: data has changed, alert & update display
 		self.sendActions(for: .valueChanged)
 
 		self.updateFieldDisplay()
@@ -475,16 +441,16 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		self.delegate?.beganShowPicker()
 
 		self.primaryfield.resignFirstResponder()
-		self.secondaryfield.resignFirstResponder()
+		self.secondaryfield?.resignFirstResponder()
 		self.primaryfield.layer.borderWidth = 0.0
-		self.secondaryfield.layer.borderWidth = 0.0
+		self.secondaryfield?.layer.borderWidth = 0.0
 
 		self.pickerController = UIViewController()
 
 		var picker:UIPickerView!
 		var datepicker:UIDatePicker!
 
-		if self.dataPickerType == .HumanHeightFT || self.dataPickerType == .HumanHeightCM {
+		if self.dataPickerType == .HumanHeightIN || self.dataPickerType == .HumanHeightCM || self.dataPickerType == .MultiArray  {
 			picker = UIPickerView()
 			picker.dataSource = self
 			picker.delegate = self
@@ -492,13 +458,6 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			self.pickerController.view = picker
 			self.pickerController.preferredContentSize = picker.sizeThatFits(CGSize())
 
-		} else if  self.dataPickerType == .Generic {
-			picker = UIPickerView()
-			picker.dataSource = self
-			picker.delegate = self
-
-			self.pickerController.view = picker
-			self.pickerController.preferredContentSize = picker.sizeThatFits(CGSize())
 		} else {
 			datepicker = UIDatePicker()
 			datepicker.datePickerMode = .date
@@ -534,7 +493,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			// select the current value, or a default value for each type
 
 			switch (self.dataPickerType) {
-			case .HumanHeightFT:
+			case .HumanHeightIN:
 				if let height:Int = self.heightValue {
 					picker.selectRow((height  / 12), inComponent: 0, animated: true)
 					picker.selectRow((height  % 12), inComponent: 1, animated: true)
@@ -560,7 +519,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 				if let date:Date = self.dateValue {
 					datepicker.setDate(date, animated:true)
 				} else {
-					datepicker.setDate(Date.init(timeIntervalSinceNow: -32000000), animated:true) // last year-ish
+					datepicker.setDate(Date.init(timeIntervalSinceNow: -32000000), animated:true) // before last year-ish
 				}
 				break
 
@@ -576,24 +535,17 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 				if let date:Date = self.dateValue {
 					datepicker.setDate(date, animated:true)
 				} else {
-					datepicker.setDate(Date.init(timeIntervalSinceNow: 32000000), animated:true) // next year-ish
+					datepicker.setDate(Date.init(timeIntervalSinceNow: 32000000), animated:true) // after next year-ish
 				}
 				break
 
-			case .Generic:
-				if let generic:String = self.genericValue {
-					if let values = self.genericValues {
-						picker.selectRow( (values.firstIndex(of:generic) ?? 0), inComponent:0, animated: true)
-					}
-				}
+			case .MultiArray:
 				break
-
-				//			case .none:
-				//				print("DataEntryPicker: dataPickerType not set. nothing to do.")
-				//				break
 			}
 
 			DispatchQueue.main.async {
+				// default Picker values selected: data has changed, alert & update display
+				self.sendActions(for: .valueChanged)
 				self.updateFieldDisplay()
 			}
 		})
@@ -611,9 +563,13 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 	public func numberOfComponents(in pickerView: UIPickerView) -> Int {
 		switch (self.dataPickerType) {
-		case .Generic:
+		case .MultiArray:
+			if let values = self.multiArrayColumns.first {
+				return values.count
+			}
 			return 1
-		case .HumanHeightFT,
+
+		case .HumanHeightIN,
 				.HumanHeightCM:
 			return 2
 
@@ -625,7 +581,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 	public func pickerView(_ pickerView:UIPickerView, numberOfRowsInComponent component:Int) -> Int {
 		switch (self.dataPickerType) {
-		case .HumanHeightFT:
+		case .HumanHeightIN:
 			return (component == 0) ? 9 : 12	//0-8 ft, 0-11 in
 
 
@@ -633,13 +589,11 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			return (component == 0) ? 3 : 100	//0-2 m, 0-99 cm
 
 
-		case .Generic:
-			if let values = self.genericValues {
-				return values.count
+		case .MultiArray:
+			if self.multiArrayColumns.count >= component {
+				return self.multiArrayColumns[component].count
 			}
 			return 0
-
-
 
 		default:
 			return 3
@@ -649,7 +603,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 	public func pickerView(_ pickerView:UIPickerView, titleForRow row:Int, forComponent component:Int) -> String? {
 		switch (self.dataPickerType) {
-		case .HumanHeightFT:
+		case .HumanHeightIN:
 			return (component == 0) ? String(format:"%d ft", row) : String(format:"%d in", row)
 
 
@@ -657,9 +611,11 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			return (component == 0) ? String(format:"%d", row) : String(format:"%d cm", row)
 
 
-		case .Generic:
-			if let values = self.genericValues {
-				return values[row]
+		case .MultiArray:
+			if self.multiArrayColumns.count >= component {
+				if self.multiArrayColumns[component].count > row {
+					return self.multiArrayColumns[component][row]
+				}
 			}
 			return ""
 
@@ -673,7 +629,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 	public func pickerView(_ pickerView:UIPickerView, didSelectRow row:Int, inComponent component:Int) {
 		switch (self.dataPickerType) {
-		case .HumanHeightFT:
+		case .HumanHeightIN:
 
 			let feet:Int = pickerView.selectedRow(inComponent: 0)
 			let inches:Int = pickerView.selectedRow(inComponent: 1)
@@ -690,18 +646,19 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 			break
 
-		case .Generic:
-			if let values = self.genericValues {
-				self.genericValue = values[row]
+		case .MultiArray:
+			if self.multiArrayColumns.count >= component {
+				if self.multiArrayColumns[component].count > row {
+					self.multiArrayValue[component] = self.multiArrayColumns[component][row]
+				}
 			}
-
 			break
 
 		default:
 			break
 		}
 
-		// data has changed:  alert & update display
+		// Picker did Pick: data has changed, alert & update display
 		self.sendActions(for: .valueChanged)
 
 		self.updateFieldDisplay()
@@ -712,7 +669,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 	@objc func datePickerValueChanged(datepicker:UIDatePicker!) {
 		self.dateValue = datepicker.date
 
-		// data has changed:  alert & update display
+		// Picker value changed: data has changed, alert & update display
 		self.sendActions(for: .valueChanged)
 
 		self.updateFieldDisplay()
@@ -726,29 +683,29 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		// what if we want to do validation outside of PCI rules?
 
 		self.primaryfield.layer.borderColor = self.invalidDataIndicatorColor.cgColor
-		self.secondaryfield.layer.borderColor = self.invalidDataIndicatorColor.cgColor
+		self.secondaryfield?.layer.borderColor = self.invalidDataIndicatorColor.cgColor
 
 		if !self.isValidData() {
 			self.primaryfield.layer.borderWidth = 1.5
 			self.primaryfield.layer.cornerRadius = 4.0
-			self.secondaryfield.layer.borderWidth = 1.5
-			self.secondaryfield.layer.cornerRadius = 4.0
+			self.secondaryfield?.layer.borderWidth = 1.5
+			self.secondaryfield?.layer.cornerRadius = 4.0
 		} else {
 			self.primaryfield.layer.borderWidth = 0.0
-			self.secondaryfield.layer.borderWidth = 0.0
+			self.secondaryfield?.layer.borderWidth = 0.0
 		}
 	}
 
 	func clearInvalidData() {
 		self.primaryfield.layer.borderWidth = 0.0
-		self.secondaryfield.layer.borderWidth = 0.0
+		self.secondaryfield?.layer.borderWidth = 0.0
 	}
 
 	func isValidData() -> Bool {
 		self.endEditing(true)	// this forces parsing of the data entry fields
 
 		switch (self.dataPickerType) {
-		case .HumanHeightFT:
+		case .HumanHeightIN:
 			// valid if greater than 10 inches
 			return (self.heightValue ?? 0  > 10)
 
@@ -778,8 +735,8 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			return false;
 
 
-		case .Generic:
-			return (self.genericValue != nil)
+		case .MultiArray:
+			return (self.multiArrayValue != nil)
 
 			//		case .none:
 			//			print("DataEntryPicker: dataPickerType not set. nothing to validate.")
@@ -791,16 +748,16 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 	func clearData() {
 		self.dateValue = nil
-		self.genericValue = nil
+		self.multiArrayValue = nil
 
 		self.primaryfield.text = ""
 
 		if  (self.secondaryfield != nil)  {
-			self.secondaryfield.text = ""
+			self.secondaryfield?.text = ""
 		}
 
 		self.primaryfield.layer.borderWidth = 0.0
-		self.secondaryfield.layer.borderWidth = 0.0
+		self.secondaryfield?.layer.borderWidth = 0.0
 
 		self.updateConstraints()
 	}

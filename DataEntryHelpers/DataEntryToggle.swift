@@ -48,7 +48,7 @@ open class DataEntryToggle: UIControl, UIGestureRecognizerDelegate {
 	}
 	var animated:Bool = true
 	private var _selectedIndex:Int = -1
-	var selectedIndex:Int {
+	public var selectedIndex:Int {
 		get { return _selectedIndex }
 		set(selectedIndex) {
 			if selectedIndex >= self.titles.count {
