@@ -28,20 +28,6 @@ public protocol DataEntryPickerDelegate : NSObject {
 
 open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegate, UIPickerViewDataSource, UIPopoverPresentationControllerDelegate {
 
-
-	// MARK: - Setup
-
-	public func setup(dataPickerType:DataEntryPickerType!
-							, inputAssistantViewController:UIViewController!
-							, nextInputField:UIResponder?
-							, delegate:DataEntryPickerDelegate?)
-	{
-		self.dataPickerType = dataPickerType
-		self.inputAssistantViewController = inputAssistantViewController
-		self.nextInputField = nextInputField
-		self.delegate = delegate
-	}
-
 	// behavior and delegates
 	public var delegate:DataEntryPickerDelegate?
 	public var dataPickerType:DataEntryPickerType = .MultiArray
@@ -50,12 +36,12 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 	public var inputAssistantViewController:UIViewController?
 
 	// component column setup for Generic type (dates are automatic, height is hardcoded)
-	public var multiArrayColumns:[[String]]! = []
+	public var multiArrayColumns:[[String]]? = []
 
 	// resulting user-picked values
 	public var heightValue:Int! = 0
-	public var dateValue:Date! = Date()
-	public var multiArrayValue:[String]! = []
+	public var dateValue:Date?
+	public var multiArrayValue:[String]?
 
 	// design
 	public var labelTextColor:UIColor! = UIColor.black
@@ -64,7 +50,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 	public var buttonBackgroundColor:UIColor! = UIColor.systemGray2
 	public var buttonShadowColor:UIColor! = UIColor.systemGray4
 	public var invalidDataIndicatorColor:UIColor! = UIColor.red
-	let multiArrayDisplaySeparator = "•"
+	let multiArrayDisplaySeparator = ","
 
 
 	private var _primaryfield:UITextField!
@@ -305,14 +291,14 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		switch (self.dataPickerType) {
 		case .HumanHeightIN:
 
-			let feet:Int = self.heightValue ?? 0 / 12
+			let feet:Int = self.heightValue / 12
+			let inches:Int = self.heightValue % 12
+
 			if feet > 0 {
 				self.primaryfield.text = String(format:"%d", feet)
 			} else {
 				self.primaryfield.text = ""
 			}
-
-			let inches:Int = self.heightValue ?? 0 % 12
 			if inches > 0 {
 				self.secondaryfield?.text = String(format:"%d", inches)
 			} else {
@@ -322,15 +308,19 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			break
 
 		case .HumanHeightCM:
-			if self.heightValue ?? 0 > 0 {
-				self.primaryfield.text = String(format:"%d", self.heightValue ?? 0)
+			if self.heightValue > 0 {
+				self.primaryfield.text = String(format:"%d", self.heightValue)
 			} else {
 				self.primaryfield.text = ""
 			}
 			break
 
 		case .MultiArray:
-			self.primaryfield.text = self.multiArrayValue.joined(separator: " \(multiArrayDisplaySeparator) ")
+			if let multi = self.multiArrayValue {
+				self.primaryfield.text = multi.joined(separator: "\(multiArrayDisplaySeparator) ")
+			} else {
+				self.primaryfield.text = ""
+			}
 			break
 
 		default:
@@ -414,11 +404,12 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			break
 
 		case .MultiArray:
-			self.multiArrayValue = []
-			if let values = self.primaryfield.text?.split(separator: Character(multiArrayDisplaySeparator)) {
-				for pos in 0...values.count {
-					self.multiArrayValue[pos] = String(values[pos])
+			if let splitText = self.primaryfield.text?.split(separator: Character(multiArrayDisplaySeparator)) {
+				var selected:[String] = []
+				for pos in 0...splitText.count {
+					selected.append(String(splitText[pos]).trimmingCharacters(in: .whitespacesAndNewlines))
 				}
+				self.multiArrayValue = selected
 			}
 			break
 
@@ -540,6 +531,30 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 				break
 
 			case .MultiArray:
+				if let multi:[String] = self.multiArrayValue, let columns:[[String]] = self.multiArrayColumns {
+					for col in 0...(columns.count - 1) {
+						let rows:[String] = columns[col]
+						for row in 0...(rows.count - 1) {
+							if col < multi.count && multi[col] == rows[row] {
+								picker.selectRow(row, inComponent: col, animated: true)
+							}
+						}
+					}
+
+				} else {
+					var firstOfEach:[String] = []
+					if let columns:[[String]] = self.multiArrayColumns {
+						for col in 0...(columns.count - 1) {
+							let rows:[String] = columns[col]
+							if rows.count > 0 {
+								firstOfEach.append(rows[0])
+							} else {
+								firstOfEach.append("")
+							}
+						}
+					}
+					self.multiArrayValue = firstOfEach
+				}
 				break
 			}
 
@@ -563,15 +578,15 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 	public func numberOfComponents(in pickerView: UIPickerView) -> Int {
 		switch (self.dataPickerType) {
-		case .MultiArray:
-			if let values = self.multiArrayColumns.first {
-				return values.count
-			}
-			return 1
-
 		case .HumanHeightIN,
 				.HumanHeightCM:
 			return 2
+
+		case .MultiArray:
+			if let columns:[[String]] = self.multiArrayColumns {
+				return columns.count
+			}
+			return 0
 
 		default:
 			return 3
@@ -590,8 +605,9 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 
 		case .MultiArray:
-			if self.multiArrayColumns.count >= component {
-				return self.multiArrayColumns[component].count
+			if let columns:[[String]] = self.multiArrayColumns {
+				let rows:[String] = columns[component]
+				return rows.count
 			}
 			return 0
 
@@ -612,13 +628,13 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 
 		case .MultiArray:
-			if self.multiArrayColumns.count >= component {
-				if self.multiArrayColumns[component].count > row {
-					return self.multiArrayColumns[component][row]
+			if let columns:[[String]] = self.multiArrayColumns {
+				let rows:[String] = columns[component]
+				if rows.count > row && row > -1 {
+					return rows[row]
 				}
 			}
 			return ""
-
 
 		default:
 			return ""
@@ -633,24 +649,29 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 			let feet:Int = pickerView.selectedRow(inComponent: 0)
 			let inches:Int = pickerView.selectedRow(inComponent: 1)
-			self.heightValue = Int(((feet * 12) + inches))
-
-
+			heightValue = Int(((feet * 12) + inches))
 			break
 
 		case .HumanHeightCM:
 
 			let m:Int = pickerView.selectedRow(inComponent: 0)
 			let cm:Int = pickerView.selectedRow(inComponent: 1)
-			self.heightValue = Int(((m * 100) + cm))
-
+			heightValue = Int(((m * 100) + cm))
 			break
 
 		case .MultiArray:
-			if self.multiArrayColumns.count >= component {
-				if self.multiArrayColumns[component].count > row {
-					self.multiArrayValue[component] = self.multiArrayColumns[component][row]
+			var selected:String = ""
+			if let columns:[[String]] = self.multiArrayColumns {
+				if component < columns.count {
+					let rows:[String] = columns[component]
+					if row < rows.count {
+						selected = rows[row]
+					}
 				}
+			}
+			if var multi:[String] = self.multiArrayValue {
+				multi[component] = selected
+				self.multiArrayValue = multi
 			}
 			break
 
@@ -737,9 +758,6 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 		case .MultiArray:
 			return (self.multiArrayValue != nil)
-
-			//		case .none:
-			//			print("DataEntryPicker: dataPickerType not set. nothing to validate.")
 		}
 
 		// if there is no requirement for a specific data above, then gigo freeform I guess you're good.
