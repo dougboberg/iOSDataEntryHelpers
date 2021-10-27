@@ -24,8 +24,9 @@ public enum DataEntryPickerType:Int {
 }
 
 public protocol DataEntryPickerDelegate : NSObject {
-	func beganTextInput()
-	func beganShowPicker()
+	func beganTextInput(control:DataEntryPicker)
+	func beganShowPicker(control:DataEntryPicker)
+	func valueChanged(control:DataEntryPicker)
 }
 
 open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegate, UIPickerViewDataSource, UIPopoverPresentationControllerDelegate {
@@ -392,7 +393,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 	// MARK: - Text Field entry
 	public func textFieldShouldBeginEditing(_ textField:UITextField) -> Bool {
-		self.delegate?.beganTextInput()
+		self.delegate?.beganTextInput(control: self)
 
 		// only allow picker input (no keyboard)
 		if showKeyaboard {
@@ -469,6 +470,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 		// Text Field did End: data has changed, alert & update display
 		self.sendActions(for: .valueChanged)
+		self.delegate?.valueChanged(control: self)
 
 		self.updateFieldDisplay()
 
@@ -478,7 +480,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 	// MARK: - Picker presentation
 
 	@objc func showPicker() {
-		self.delegate?.beganShowPicker()
+		self.delegate?.beganShowPicker(control: self)
 
 		self.primaryfield.resignFirstResponder()
 		self.secondaryfield?.resignFirstResponder()
@@ -612,6 +614,8 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 			DispatchQueue.main.async {
 				// default Picker values selected: data has changed, alert & update display
 				self.sendActions(for: .valueChanged)
+				self.delegate?.valueChanged(control: self)
+
 				self.updateFieldDisplay()
 			}
 		})
@@ -754,6 +758,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 		// Picker did Pick: data has changed, alert & update display
 		self.sendActions(for: .valueChanged)
+		self.delegate?.valueChanged(control: self)
 
 		self.updateFieldDisplay()
 	}
@@ -765,6 +770,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 
 		// Picker value changed: data has changed, alert & update display
 		self.sendActions(for: .valueChanged)
+		self.delegate?.valueChanged(control: self)
 
 		self.updateFieldDisplay()
 	}
