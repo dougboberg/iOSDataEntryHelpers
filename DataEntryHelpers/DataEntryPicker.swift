@@ -857,7 +857,7 @@ open class DataEntryPicker : UIControl, UITextFieldDelegate, UIPickerViewDelegat
 		}
 	}
 
-	func clearData() {
+	public func clearData() {
 		self.dateValue = nil
 		self.multiArrayValue = nil
 
